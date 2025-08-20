@@ -59,6 +59,6 @@ class MidiNote:
         self.endTicks = endTicks
         self.endSeconds = mido.tick2second(endTicks, self.parent.ticks_per_beat, self.parent.tempo)
 
-#mdi = MidiFile('audio_in/PinkPanther.midi')
-#for n in mdi.find_note(5.2):
-#    print(n.startSeconds, n.endSeconds)
+mdi = MidiFile(r"C:\Users\henry\OneDrive\Documents\GitHub\aquazik\output\music.mid")
+for n in mdi.find_note(5.2):
+    print(n.startSeconds, n.endSeconds)
