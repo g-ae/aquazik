@@ -7,7 +7,9 @@ import os
 import tqdm
 from datetime import datetime
 
-WINDOW_TIME = 0.25
+DEBUG_OUTPUT_FILES = False
+
+WINDOW_TIME = 0.125
 
 FREQ_MIN = 100
 FREQ_MAX = 7_000
@@ -24,7 +26,7 @@ def note_name(n): return NOTE_NAMES[n % 12] + str(int(n/12 - 1))
 
 
 
-mp3_file = AudioSegment.from_mp3("PinkPanther_Piano_Only.mp3")
+mp3_file = AudioSegment.from_mp3("audio_in/PinkPanther_Piano_Only.mp3")
 wav_file = mp3_file.export("output.wav", format="wav")
 
 sample_rate, audio_data = wavfile.read("output.wav")
@@ -42,7 +44,7 @@ FPS = NUMBER_OF_WINDOWS / AUDIO_LENGTH
 
 xf = np.fft.rfftfreq(audio_data.size, 1/sample_rate) # Frequency bins for the FFT
 
-def get_top_notes(fft, xf, mx, top_n=TOP_NOTES):
+def get_top_notes(fft, xf, mx, top_n=TOP_NOTES) -> list:
     if np.max(fft.real)<0.001:
         return []
 
@@ -78,6 +80,8 @@ def get_top_notes(fft, xf, mx, top_n=TOP_NOTES):
 
 
 def build_fig_matplotlib(p, xf, notes, filename, dimensions=(16, 8)):
+    if not DEBUG_OUTPUT_FILES:
+        return
     plt.figure(figsize=dimensions)
     plt.plot(xf, p/mx, color='steelblue')
     plt.xlim(FREQ_MIN, FREQ_MAX)
@@ -120,8 +124,12 @@ for frame_num in range(NUMBER_OF_WINDOWS):
 current_time_formated = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
 frames_folder = f"frames_{current_time_formated}"
 output_videos_folder = f"output_videos_{current_time_formated}"
-os.makedirs(frames_folder, exist_ok=True)
-os.makedirs(output_videos_folder, exist_ok=True)
+
+if DEBUG_OUTPUT_FILES:
+    os.makedirs(frames_folder, exist_ok=True)
+    os.makedirs(output_videos_folder, exist_ok=True)
+
+notes_array = []
 
 # Process each frame and save the FFT plot
 for frame_num in tqdm.tqdm(range(NUMBER_OF_WINDOWS)):
@@ -140,40 +148,51 @@ for frame_num in tqdm.tqdm(range(NUMBER_OF_WINDOWS)):
     fft = np.abs(fft) 
 
     frame_xf = np.fft.rfftfreq(len(frame_audio), 1/sample_rate)
+    
+    top_notes = get_top_notes(fft, frame_xf, mx)
+
+    dominant_note = min(top_notes, key=lambda x: x[0]) if top_notes else None
+
+    if dominant_note is None: continue
+
+    notes_array.append({WINDOW_TIME * frame_num:dominant_note[1]})
 
     # draw and save the figure
     build_fig_matplotlib(fft, frame_xf, get_top_notes(fft, frame_xf, mx), f"{frames_folder}/fft_frame_{frame_num:04d}.png")
 
+print(notes_array)
 
-# Combine frames into a video using ffmpeg
-import subprocess
-video_no_audio = f"{output_videos_folder}/output_video_no_audio.mp4"
-final_video = f"{output_videos_folder}/final_video.mp4"
+if DEBUG_OUTPUT_FILES:
 
-# Step 1: Create video from frames
-subprocess.run([
-    "ffmpeg",
-    "-y",  # Overwrite output files without asking
-    "-framerate", str(FPS),
-    "-i", f"{frames_folder}/fft_frame_%04d.png",
-    "-c:v", "libx264",
-    "-pix_fmt", "yuv420p",
-    video_no_audio
-])
+    # Combine frames into a video using ffmpeg
+    import subprocess
+    video_no_audio = f"{output_videos_folder}/output_video_no_audio.mp4"
+    final_video = f"{output_videos_folder}/final_video.mp4"
 
-# Step 2: Combine video with audio
-subprocess.run([
-    "ffmpeg",
-    "-y",
-    "-i", video_no_audio,
-    "-i", "output.wav",
-    "-c:v", "copy",
-    "-c:a", "aac",
-    "-shortest",
-    final_video
-])
+    # Step 1: Create video from frames
+    subprocess.run([
+        "ffmpeg",
+        "-y",  # Overwrite output files without asking
+        "-framerate", str(FPS),
+        "-i", f"{frames_folder}/fft_frame_%04d.png",
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        video_no_audio
+    ])
 
-print(f"Video with audio saved as: {final_video}")
+    # Step 2: Combine video with audio
+    subprocess.run([
+        "ffmpeg",
+        "-y",
+        "-i", video_no_audio,
+        "-i", "output.wav",
+        "-c:v", "copy",
+        "-c:a", "aac",
+        "-shortest",
+        final_video
+    ])
+
+    print(f"Video with audio saved as: {final_video}")
 
 
 
