@@ -1,0 +1,1 @@
+# Project migrated to [Zoatik/aquazik](https://github.com/Zoatik/aquazik)
