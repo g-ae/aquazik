@@ -7,7 +7,9 @@ import os
 import tqdm
 from datetime import datetime
 
-WINDOW_TIME = 0.25
+DEBUG_OUTPUT_FILES = False
+
+WINDOW_TIME = 0.125
 
 FREQ_MIN = 100
 FREQ_MAX = 7_000
@@ -24,7 +26,7 @@ def note_name(n): return NOTE_NAMES[n % 12] + str(int(n/12 - 1))
 
 
 
-mp3_file = AudioSegment.from_mp3("PinkPanther_Piano_Only.mp3")
+mp3_file = AudioSegment.from_mp3("audio_in/PinkPanther_Piano_Only.mp3")
 wav_file = mp3_file.export("output.wav", format="wav")
 
 sample_rate, audio_data = wavfile.read("output.wav")
@@ -42,7 +44,7 @@ FPS = NUMBER_OF_WINDOWS / AUDIO_LENGTH
 
 xf = np.fft.rfftfreq(audio_data.size, 1/sample_rate) # Frequency bins for the FFT
 
-def get_top_notes(fft, xf, mx, top_n=TOP_NOTES):
+def get_top_notes(fft, xf, mx, top_n=TOP_NOTES) -> list:
     if np.max(fft.real)<0.001:
         return []
 
@@ -78,6 +80,8 @@ def get_top_notes(fft, xf, mx, top_n=TOP_NOTES):
 
 
 def build_fig_matplotlib(p, xf, notes, filename, dimensions=(16, 8)):
+    if not DEBUG_OUTPUT_FILES:
+        return
     plt.figure(figsize=dimensions)
     plt.plot(xf, p/mx, color='steelblue')
     plt.xlim(FREQ_MIN, FREQ_MAX)
@@ -123,6 +127,8 @@ output_videos_folder = f"output_videos_{current_time_formated}"
 os.makedirs(frames_folder, exist_ok=True)
 os.makedirs(output_videos_folder, exist_ok=True)
 
+notes_array = []
+
 # Process each frame and save the FFT plot
 for frame_num in tqdm.tqdm(range(NUMBER_OF_WINDOWS)):
     start = frame_num * SAMPLES_PER_WINDOW
@@ -140,10 +146,22 @@ for frame_num in tqdm.tqdm(range(NUMBER_OF_WINDOWS)):
     fft = np.abs(fft) 
 
     frame_xf = np.fft.rfftfreq(len(frame_audio), 1/sample_rate)
+    
+    top_notes = get_top_notes(fft, frame_xf, mx)
+
+    dominant_note = min(top_notes, key=lambda x: x[0]) if top_notes else None
+
+    if dominant_note is None: continue
+
+    notes_array.append({WINDOW_TIME * frame_num:dominant_note[1]})
 
     # draw and save the figure
     build_fig_matplotlib(fft, frame_xf, get_top_notes(fft, frame_xf, mx), f"{frames_folder}/fft_frame_{frame_num:04d}.png")
 
+print(notes_array)
+
+if not DEBUG_OUTPUT_FILES:
+    exit(0)
 
 # Combine frames into a video using ffmpeg
 import subprocess
