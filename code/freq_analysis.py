@@ -124,8 +124,10 @@ for frame_num in range(NUMBER_OF_WINDOWS):
 current_time_formated = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
 frames_folder = f"frames_{current_time_formated}"
 output_videos_folder = f"output_videos_{current_time_formated}"
-os.makedirs(frames_folder, exist_ok=True)
-os.makedirs(output_videos_folder, exist_ok=True)
+
+if DEBUG_OUTPUT_FILES:
+    os.makedirs(frames_folder, exist_ok=True)
+    os.makedirs(output_videos_folder, exist_ok=True)
 
 notes_array = []
 
@@ -160,38 +162,37 @@ for frame_num in tqdm.tqdm(range(NUMBER_OF_WINDOWS)):
 
 print(notes_array)
 
-if not DEBUG_OUTPUT_FILES:
-    exit(0)
+if DEBUG_OUTPUT_FILES:
 
-# Combine frames into a video using ffmpeg
-import subprocess
-video_no_audio = f"{output_videos_folder}/output_video_no_audio.mp4"
-final_video = f"{output_videos_folder}/final_video.mp4"
+    # Combine frames into a video using ffmpeg
+    import subprocess
+    video_no_audio = f"{output_videos_folder}/output_video_no_audio.mp4"
+    final_video = f"{output_videos_folder}/final_video.mp4"
 
-# Step 1: Create video from frames
-subprocess.run([
-    "ffmpeg",
-    "-y",  # Overwrite output files without asking
-    "-framerate", str(FPS),
-    "-i", f"{frames_folder}/fft_frame_%04d.png",
-    "-c:v", "libx264",
-    "-pix_fmt", "yuv420p",
-    video_no_audio
-])
+    # Step 1: Create video from frames
+    subprocess.run([
+        "ffmpeg",
+        "-y",  # Overwrite output files without asking
+        "-framerate", str(FPS),
+        "-i", f"{frames_folder}/fft_frame_%04d.png",
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        video_no_audio
+    ])
 
-# Step 2: Combine video with audio
-subprocess.run([
-    "ffmpeg",
-    "-y",
-    "-i", video_no_audio,
-    "-i", "output.wav",
-    "-c:v", "copy",
-    "-c:a", "aac",
-    "-shortest",
-    final_video
-])
+    # Step 2: Combine video with audio
+    subprocess.run([
+        "ffmpeg",
+        "-y",
+        "-i", video_no_audio,
+        "-i", "output.wav",
+        "-c:v", "copy",
+        "-c:a", "aac",
+        "-shortest",
+        final_video
+    ])
 
-print(f"Video with audio saved as: {final_video}")
+    print(f"Video with audio saved as: {final_video}")
 
 
 
