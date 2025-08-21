@@ -1,0 +1,17 @@
+[project]
+name = "aquazik"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aubio>=0.4.9",
+    "fastapi>=0.116.1",
+    "matplotlib>=3.10.5",
+    "midiutil>=1.2.1",
+    "mido>=1.3.3",
+    "numpy>=2.3.2",
+    "pydub>=0.25.1",
+    "scipy>=1.16.1",
+    "tqdm>=4.67.1",
+]
